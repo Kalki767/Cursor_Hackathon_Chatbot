@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -24,6 +25,15 @@ app = FastAPI(
     version="2.2.0"
 )
 
+# Enable CORS for all origins (allow any website to call the API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Request body schema
 class MessageRequest(BaseModel):
     message: str
@@ -32,6 +42,7 @@ class MessageRequest(BaseModel):
 # Response schema
 class MessageResponse(BaseModel):
     response: str
+    response_html: str
     user_id: str
     message_id: int
     context_analysis: Optional[dict] = None
@@ -109,8 +120,12 @@ async def chat_endpoint(
             # You could add emergency contact information or crisis hotline numbers here
             ai_response += "\n\n⚠️ If you're having thoughts of self-harm, please contact the National Suicide Prevention Lifeline at 988 or 1-800-273-8255. You're not alone, and help is available 24/7."
         
+        # Add HTML-formatted response
+        ai_response_html = ai_response.replace('\n', '<br>')
+        
         return MessageResponse(
             response=ai_response,
+            response_html=ai_response_html,
             user_id=req.user_id,
             message_id=assistant_message.id,
             context_analysis=context_analysis
