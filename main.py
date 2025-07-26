@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from sqlalchemy.orm import Session
 from typing import Optional
 import logging
@@ -37,7 +37,21 @@ app.add_middleware(
 # Request body schema
 class MessageRequest(BaseModel):
     message: str
-    user_id: str  # Required user identifier
+    user_id: str
+    
+    @validator('user_id')
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id is required and cannot be empty')
+        if len(v.strip()) < 3:
+            raise ValueError('user_id must be at least 3 characters long')
+        return v.strip()
+    
+    @validator('message')
+    def validate_message(cls, v):
+        if not v or not v.strip():
+            raise ValueError('message is required and cannot be empty')
+        return v.strip()
 
 # Response schema
 class MessageResponse(BaseModel):
@@ -144,10 +158,13 @@ async def get_conversation_history(
     """
     Get conversation history for a specific user and chat
     """
+    if not user_id or not user_id.strip():
+        raise HTTPException(status_code=400, detail="user_id is required")
+    
     try:
         db_service = DatabaseService(db)
-        history = db_service.get_conversation_history(user_id, limit=limit)
-        return {"user_id": user_id, "history": history}
+        history = db_service.get_conversation_history(user_id.strip(), limit=limit)
+        return {"user_id": user_id.strip(), "history": history}
     except Exception as e:
         logger.error(f"Error getting conversation history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -160,13 +177,16 @@ async def get_user_analysis(
     """
     Get comprehensive analysis of user's conversation patterns and sentiment
     """
+    if not user_id or not user_id.strip():
+        raise HTTPException(status_code=400, detail="user_id is required")
+    
     try:
         db_service = DatabaseService(db)
-        analysis = db_service.get_user_sentiment_history(user_id)
-        summary = db_service.get_user_conversation_summary(user_id)
+        analysis = db_service.get_user_sentiment_history(user_id.strip())
+        summary = db_service.get_user_conversation_summary(user_id.strip())
         
         return {
-            "user_id": user_id,
+            "user_id": user_id.strip(),
             "analysis": analysis,
             "summary": summary
         }
@@ -182,10 +202,13 @@ async def get_user_summary(
     """
     Get a summary of all user's conversations and patterns
     """
+    if not user_id or not user_id.strip():
+        raise HTTPException(status_code=400, detail="user_id is required")
+    
     try:
         db_service = DatabaseService(db)
-        summary = db_service.get_user_conversation_summary(user_id)
-        return {"user_id": user_id, "summary": summary}
+        summary = db_service.get_user_conversation_summary(user_id.strip())
+        return {"user_id": user_id.strip(), "summary": summary}
     except Exception as e:
         logger.error(f"Error getting user summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
